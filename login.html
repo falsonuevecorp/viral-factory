@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login | ViralFactory</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+    <style>
+        body {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            background: #F5F5F7;
+        }
+        .login-card {
+            background: #fff;
+            padding: 40px;
+            border-radius: 24px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.05);
+            width: 100%;
+            max-width: 400px;
+            text-align: center;
+        }
+        .login-card h1 {
+            font-size: 1.8rem;
+            font-weight: 600;
+            margin-bottom: 30px;
+            letter-spacing: -1px;
+        }
+        .input-group {
+            margin-bottom: 20px;
+            text-align: left;
+        }
+        .input-group label {
+            display: block;
+            font-size: 0.8rem;
+            color: #86868B;
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+        .input-group input {
+            width: 100%;
+            padding: 14px;
+            border: 1px solid #E5E5E7;
+            border-radius: 12px;
+            font-size: 1rem;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+        .input-group input:focus {
+            border-color: #0071E3;
+        }
+        .btn-login {
+            width: 100%;
+            padding: 14px;
+            background: #0071E3;
+            color: #fff;
+            border: none;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, background 0.3s;
+        }
+        .btn-login:hover {
+            background: #0077ED;
+            transform: scale(1.02);
+        }
+    </style>
+</head>
+<body>
+    <div class="login-card">
+        <div class="logo" style="margin-bottom: 20px;">ViralFactory</div>
+        <h1>Inicia sesión</h1>
+        <form id="login-form">
+            <div class="input-group">
+                <label>Email</label>
+                <input type="email" id="email" required placeholder="tu@email.com">
+            </div>
+            <div class="input-group">
+                <label>Contraseña</label>
+                <input type="password" id="password" required placeholder="••••••••">
+            </div>
+            <button type="submit" class="btn-login">Continuar</button>
+        </form>
+    </div>
+
+    <script>
+        document.getElementById('login-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+
+            try {
+                const res = await fetch('/api/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    window.location.href = '/index.html';
+                } else {
+                    alert('Credenciales incorrectas');
+                }
+            } catch (err) {
+                alert('Error al conectar con el servidor');
+            }
+        });
+    </script>
+</body>
+</html>

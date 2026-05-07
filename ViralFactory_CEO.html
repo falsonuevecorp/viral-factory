@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ViralFactory | Automated Content</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --apple-bg: #F5F5F7;
+            --apple-white: #FFFFFF;
+            --apple-text: #1D1D1F;
+            --apple-blue: #0071E3;
+            --apple-gray: #86868B;
+            --radius: 24px;
+            --shadow: 0 10px 40px rgba(0,0,0,0.04);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background-color: var(--apple-bg);
+            color: var(--apple-text);
+            -webkit-font-smoothing: antialiased;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .login-card, .app-card {
+            background: var(--apple-white);
+            padding: 50px;
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            width: 100%;
+            max-width: 450px;
+            text-align: center;
+            transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .logo {
+            font-weight: 600;
+            font-size: 1.4rem;
+            margin-bottom: 30px;
+            letter-spacing: -0.5px;
+        }
+
+        h1 {
+            font-size: 2rem;
+            font-weight: 600;
+            letter-spacing: -1.2px;
+            margin-bottom: 15px;
+        }
+
+        p { color: var(--apple-gray); margin-bottom: 30px; line-height: 1.5; }
+
+        .input-group { text-align: left; margin-bottom: 20px; }
+        .input-group label { display: block; font-size: 0.8rem; color: var(--apple-gray); margin-bottom: 8px; font-weight: 500; }
+        .input-group input {
+            width: 100%;
+            padding: 16px;
+            border: 1px solid #E5E5E7;
+            border-radius: 14px;
+            font-size: 1rem;
+            outline: none;
+            background: #F9F9F9;
+            transition: all 0.3s;
+        }
+        .input-group input:focus { border-color: var(--apple-blue); background: #fff; box-shadow: 0 0 0 4px rgba(0,113,227,0.1); }
+
+        .btn {
+            width: 100%;
+            padding: 16px;
+            background: var(--apple-blue);
+            color: #fff;
+            border: none;
+            border-radius: 14px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .btn:hover { background: #0077ED; transform: translateY(-2px); }
+
+        /* Dashboard Styles */
+        .upload-zone {
+            border: 2px dashed #E5E5E7;
+            padding: 60px 20px;
+            border-radius: var(--radius);
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .upload-zone:hover { border-color: var(--apple-blue); background: rgba(0,113,227,0.02); }
+
+        .progress-container { margin-top: 30px; text-align: left; }
+        .progress-bar { height: 6px; background: #F2F2F7; border-radius: 100px; overflow: hidden; margin: 15px 0; }
+        .progress-fill { height: 100%; background: var(--apple-blue); width: 0%; transition: width 0.5s; }
+        
+        .step { font-size: 0.85rem; padding: 8px 0; color: var(--apple-gray); display: flex; align-items: center; gap: 10px; }
+        .step.active { color: var(--apple-blue); font-weight: 600; }
+        .step.done { color: var(--apple-text); }
+        .step.done::before { content: "✓"; color: #34C759; font-weight: 800; }
+    </style>
+</head>
+<body>
+
+    <!-- PANTALLA LOGIN -->
+    <div class="login-card" id="login-screen">
+        <div class="logo">ViralFactory</div>
+        <h1>Inicia sesión</h1>
+        <p>Accede a tu búnker de viralidad.</p>
+        <div class="input-group">
+            <label>Email</label>
+            <input type="email" id="email" placeholder="admin@viral.ai">
+        </div>
+        <div class="input-group">
+            <label>Contraseña</label>
+            <input type="password" id="password" placeholder="••••••••">
+        </div>
+        <button class="btn" onclick="handleLogin()">Entrar al Imperio</button>
+    </div>
+
+    <!-- PANTALLA DASHBOARD -->
+    <div class="app-card" id="app-screen" style="display: none; max-width: 600px;">
+        <div class="logo">ViralFactory</div>
+        <h1>Sube tu video crudo</h1>
+        <p>La IA se encargará de los cortes, subtítulos y publicación.</p>
+        
+        <div class="upload-zone" onclick="simulateUpload()">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#0071E3" stroke-width="2" style="margin-bottom:15px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            <h3 style="font-size:1.1rem; font-weight:600;">Seleccionar video</h3>
+            <span style="font-size:0.85rem; color:var(--apple-gray);">Formato MP4 o MOV recomendado</span>
+        </div>
+
+        <div class="progress-container" id="processing" style="display: none;">
+            <div style="display:flex; justify-content:space-between; font-size:0.9rem; font-weight:600;">
+                <span>Editando Video con IA...</span>
+                <span id="percent">0%</span>
+            </div>
+            <div class="progress-bar"><div class="progress-fill" id="fill"></div></div>
+            <div class="step" id="s1">Transcripción y análisis de ganchos</div>
+            <div class="step" id="s2">Corte de silencios y edición dinámica</div>
+            <div class="step" id="s3">Generación de subtítulos Apple-style</div>
+            <div class="step" id="s4">Programación en RRSS completada</div>
+        </div>
+    </div>
+
+    <script>
+        function handleLogin() {
+            const email = document.getElementById('email').value;
+            const pass = document.getElementById('password').value;
+
+            if (email === 'admin@viral.ai' && pass === 'elite2026') {
+                document.getElementById('login-screen').style.display = 'none';
+                document.getElementById('app-screen').style.display = 'block';
+            } else {
+                alert('Credenciales incorrectas');
+            }
+        }
+
+        function simulateUpload() {
+            document.querySelector('.upload-zone').style.display = 'none';
+            document.getElementById('processing').style.display = 'block';
+            
+            let p = 0;
+            const interval = setInterval(() => {
+                p += Math.random() * 8;
+                if (p >= 100) {
+                    p = 100;
+                    clearInterval(interval);
+                    document.getElementById('s4').classList.add('done');
+                    setTimeout(() => alert('¡Video Publicado con éxito!'), 500);
+                }
+                
+                document.getElementById('fill').style.width = p + '%';
+                document.getElementById('percent').innerText = Math.round(p) + '%';
+
+                if (p > 25) { document.getElementById('s1').classList.add('done'); document.getElementById('s2').classList.add('active'); }
+                if (p > 50) { document.getElementById('s2').classList.replace('active', 'done'); document.getElementById('s3').classList.add('active'); }
+                if (p > 75) { document.getElementById('s3').classList.replace('active', 'done'); document.getElementById('s4').classList.add('active'); }
+            }, 800);
+        }
+    </script>
+</body>
+</html>
