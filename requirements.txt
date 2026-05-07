@@ -1,5 +1,9 @@
-moviepy==1.0.3
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch
+torchvision
+torchaudio
 openai-whisper
 openai
 python-dotenv
 requests
+moviepy==1.0.3
