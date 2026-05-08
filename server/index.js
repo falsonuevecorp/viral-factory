@@ -64,9 +64,44 @@ app.post('/api/login', async (req, res) => {
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-app.post('/api/process-video', upload.single('video'), (req, res) => {
+const { spawn } = require('child_process');
+const { initDB, getUserByEmail, getDb } = require('./database');
+
+// ... (después del middleware)
+
+app.post('/api/process-video', upload.single('video'), async (req, res) => {
     if (!req.file) return res.status(400).send('No video file.');
-    res.json({ success: true, videoId: req.file.filename });
+    
+    try {
+        const db = getDb();
+        const result = await db.run(
+            'INSERT INTO videos (original_name, file_path, status) VALUES (?, ?, ?)',
+            [req.file.originalname, req.file.path, 'processing']
+        );
+        const videoId = result.lastID;
+        const outputPath = `uploads/output_${videoId}.mp4`;
+
+        // Ejecutar motor IA en segundo plano
+        const pythonProcess = spawn('python3', ['scripts/editor.py', req.file.path, outputPath]);
+        
+        pythonProcess.on('close', async (code) => {
+            const finalStatus = code === 0 ? 'completed' : 'failed';
+            await db.run('UPDATE videos SET status = ?, output_path = ? WHERE id = ?', 
+                [finalStatus, outputPath, videoId]);
+        });
+
+        res.json({ success: true, videoId, message: 'Procesamiento iniciado' });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+app.get('/api/videos', async (req, res) => {
+    try {
+        const db = getDb();
+        const videos = await db.all('SELECT * FROM videos ORDER BY created_at DESC LIMIT 10');
+        res.json(videos);
+    } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 app.get('/health', (req, res) => res.status(200).send('OK'));
