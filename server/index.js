@@ -4,7 +4,7 @@ const path = require('path');
 const fs = require('fs');
 const cookieParser = require('cookie-parser');
 const jwt = require('jsonwebtoken');
-const { initDB, getUserByEmail } = require('./database');
+const { initDB, getUserByEmail, getDb } = require('./database');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -48,7 +48,7 @@ const authMiddleware = (req, res, next) => {
 };
 
 app.use(authMiddleware);
-app.use(express.static(path.join(__dirname, '../')));
+app.use(express.static(path.resolve(__dirname, '..')));
 
 // --- ENDPOINTS ---
 app.post('/api/login', async (req, res) => {
@@ -65,7 +65,6 @@ app.post('/api/login', async (req, res) => {
 });
 
 const { spawn } = require('child_process');
-const { initDB, getUserByEmail, getDb } = require('./database');
 
 // ... (después del middleware)
 

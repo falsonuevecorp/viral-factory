@@ -25,31 +25,23 @@
             </header>
 
             <div class="upload-zone" id="drop-zone">
-                <div class="upload-content">
+                <div class="upload-content" style="pointer-events: none;">
                     <div class="icon-circle">
                         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
                     </div>
                     <h2>Arrastra tu video aquí</h2>
                     <p>O haz clic para seleccionar un archivo</p>
-                    <input type="file" id="file-input" hidden accept="video/*">
                 </div>
+                <input type="file" id="file-input" hidden accept="video/*">
             </div>
 
-            <section class="status-panel" id="status-panel" style="display: none;">
-                <div class="status-card">
-                    <div class="status-header">
-                        <span class="status-title">Procesando Video</span>
-                        <span class="status-percentage">45%</span>
-                    </div>
-                    <div class="progress-bar-bg">
-                        <div class="progress-bar-fill" style="width: 45%;"></div>
-                    </div>
-                    <ul class="step-list">
-                        <li class="completed">Transcripción de audio</li>
-                        <li class="active">Generación de subtítulos dinámicos</li>
-                        <li class="pending">Inyección de B-Roll</li>
-                        <li class="pending">Auto-publicación programada</li>
-                    </ul>
+            <section class="queue-section">
+                <div class="queue-header">
+                    <h3>Cola de Procesamiento</h3>
+                    <span class="badge" id="video-count">0 videos</span>
+                </div>
+                <div id="video-list">
+                    <p class="text-zinc-500 text-center py-10">Conectando con la base de datos...</p>
                 </div>
             </section>
         </main>

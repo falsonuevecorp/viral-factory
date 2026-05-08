@@ -4,24 +4,33 @@ import requests
 import json
 from moviepy.editor import VideoFileClip, TextClip, CompositeVideoClip
 from openai import OpenAI
-# Para Railway es mejor manejar variables de entorno
 from dotenv import load_dotenv
 
 load_dotenv()
-# Necesitaremos tu OPENAI_API_KEY en las variables de Railway
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+
+def create_styled_subtitle(text, duration, start_time):
+    # Estilo 'Elite': Fuente Inter/Roboto, Bold, Amarillo/Blanco, Sombra Negra
+    return TextClip(
+        text.upper(),
+        fontsize=70,
+        color='yellow',
+        font='Arial-Bold',
+        stroke_color='black',
+        stroke_width=2,
+        method='caption',
+        size=(800, None)
+    ).set_start(start_time).set_duration(duration).set_position(('center', 800))
 
 def process_video(input_path, output_path):
     print(f"🎬 ViralFactory Engine: Procesando {input_path}")
     
     try:
-        # 1. Cargar video y extraer audio temporal
         clip = VideoFileClip(input_path)
-        audio_temp = "temp_audio.mp3"
+        audio_temp = f"temp_audio_{os.path.basename(output_path)}.mp3"
         clip.audio.write_audiofile(audio_temp, logger=None)
         
-        # 2. Transcribir con OpenAI Whisper API (Infinitamente más ligero que local)
-        print("🎙️ Transcribiendo con AI...")
+        print("🎙️ Transcribiendo con AI y obteniendo timestamps...")
         with open(audio_temp, "rb") as audio_file:
             transcript = client.audio.transcriptions.create(
                 model="whisper-1", 
@@ -29,15 +38,23 @@ def process_video(input_path, output_path):
                 response_format="verbose_json"
             )
         
-        print(f"📝 Transcripción completada: {len(transcript.text)} caracteres.")
+        # 3. Generar Subtítulos por Segmentos
+        subtitles = []
+        for segment in transcript.segments:
+            txt = segment['text']
+            start = segment['start']
+            end = segment['end']
+            sub = create_styled_subtitle(txt, end - start, start)
+            subtitles.append(sub)
         
-        # 3. Guardar metadatos para el editor visual
-        # (Próximo paso: Generar subtítulos quemados en el video)
+        print(f"🎨 Aplicando {len(subtitles)} subtítulos estilo 'Viral Elite'...")
         
-        # De momento, clonamos el video como prueba de vida exitosa
-        clip.write_videofile(output_path, codec="libx264", audio_codec="aac", logger=None)
+        # Superponer subtítulos al video original
+        final_video = CompositeVideoClip([clip] + subtitles)
         
-        # Limpieza
+        # Exportar con ajustes de alta calidad
+        final_video.write_videofile(output_path, codec="libx264", audio_codec="aac", logger=None, fps=24)
+        
         if os.path.exists(audio_temp): os.remove(audio_temp)
         print(f"✅ Éxito total: {output_path}")
 
