@@ -27,6 +27,10 @@ def process_video(input_path, output_path):
     
     try:
         clip = VideoFileClip(input_path)
+        
+        if clip.audio is None:
+            raise ValueError("El video subido no tiene pista de audio. No se pueden generar subtítulos.")
+            
         audio_temp = f"temp_audio_{os.path.basename(output_path)}.mp3"
         clip.audio.write_audiofile(audio_temp, logger=None)
         

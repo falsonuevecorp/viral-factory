@@ -15,10 +15,12 @@ async function handleUpload(file) {
     const formData = new FormData();
     formData.append('video', file);
 
-    // Mostrar estado de carga en el dropzone
+    // Mostrar estado de carga en el dropzone, pero solo cambiando el contenido visual, no el input
     const dropZone = document.getElementById('drop-zone');
-    const originalHTML = dropZone.innerHTML;
-    dropZone.innerHTML = '<div style="text-align: center; color: white;"><h3>Subiendo video...</h3></div>';
+    const uploadContent = dropZone.querySelector('.upload-content');
+    const originalHTML = uploadContent.innerHTML;
+    
+    uploadContent.innerHTML = '<div style="text-align: center; color: white;"><h3>Subiendo video...</h3></div>';
     dropZone.style.pointerEvents = 'none';
 
     try {
@@ -42,7 +44,7 @@ async function handleUpload(file) {
         if (result.success) {
             // Limpiar input y volver a mostrar dropzone original
             document.getElementById('file-input').value = '';
-            dropZone.innerHTML = originalHTML;
+            uploadContent.innerHTML = originalHTML;
             dropZone.style.pointerEvents = 'auto';
             
             // Recargar la lista de videos para ver el nuevo en 'processing'
@@ -55,7 +57,7 @@ async function handleUpload(file) {
     } catch (error) {
         console.error('Error uploading video:', error);
         alert('Error al subir video: ' + error.message);
-        dropZone.innerHTML = originalHTML;
+        uploadContent.innerHTML = originalHTML;
         dropZone.style.pointerEvents = 'auto';
     }
 }
@@ -79,14 +81,15 @@ async function loadVideos() {
         videoList.innerHTML = videos.map(video => `
             <div class="video-item" style="border: 1px solid #333; padding: 10px; margin-bottom: 10px; border-radius: 8px; background: #111;">
                 <div style="display: flex; justify-content: space-between; align-items: center;">
-                    <h4 style="margin: 0; color: #fff;">${video.original_name}</h4>
-                    <span style="padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: bold; 
+                    <h4 style="margin: 0; color: #fff; flex-grow: 1;">${video.original_name}</h4>
+                    <span style="padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: bold; flex-shrink: 0;
                         background: ${video.status === 'completed' ? '#22c55e22' : video.status === 'failed' ? '#ef444422' : '#eab30822'};
                         color: ${video.status === 'completed' ? '#22c55e' : video.status === 'failed' ? '#ef4444' : '#eab308'};">
                         ${video.status.toUpperCase()}
                     </span>
                 </div>
                 ${video.status === 'completed' ? `<a href="/${video.output_path}" target="_blank" style="color: #3b82f6; font-size: 14px; text-decoration: none; margin-top: 8px; display: inline-block;">Ver Resultado</a>` : ''}
+                ${video.status === 'failed' && video.error_message ? `<div style="margin-top: 8px; padding: 8px; background: #3f0000; color: #ffbaba; border-radius: 4px; font-size: 12px; font-family: monospace; white-space: pre-wrap; overflow-x: auto;">${video.error_message.substring(0, 300)}...</div>` : ''}
             </div>
         `).join('');
     } catch (error) {

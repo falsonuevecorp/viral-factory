@@ -82,11 +82,28 @@ app.post('/api/process-video', upload.single('video'), async (req, res) => {
 
         // Ejecutar motor IA en segundo plano
         const pythonProcess = spawn('python3', ['scripts/editor.py', req.file.path, outputPath]);
+        let errorOutput = '';
+
+        pythonProcess.stderr.on('data', (data) => {
+            errorOutput += data.toString();
+        });
         
         pythonProcess.on('close', async (code) => {
             const finalStatus = code === 0 ? 'completed' : 'failed';
-            await db.run('UPDATE videos SET status = ?, output_path = ? WHERE id = ?', 
-                [finalStatus, outputPath, videoId]);
+            // Fallback si no logramos atrapar el stderr
+            if (code !== 0 && !errorOutput) {
+                errorOutput = 'Error desconocido en Python (Código ' + code + ')';
+            }
+            
+            try {
+                // Agregar la columna error_message si no existe (ignorará el error si ya existe)
+                await db.run('ALTER TABLE videos ADD COLUMN error_message TEXT').catch(()=> {});
+                
+                await db.run('UPDATE videos SET status = ?, output_path = ?, error_message = ? WHERE id = ?', 
+                    [finalStatus, outputPath, errorOutput, videoId]);
+            } catch(e) {
+                console.error("Error actualizando estado del video:", e);
+            }
         });
 
         res.json({ success: true, videoId, message: 'Procesamiento iniciado' });
