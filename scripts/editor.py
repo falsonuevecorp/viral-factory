@@ -15,7 +15,7 @@ def create_styled_subtitle(text, duration, start_time):
         text.upper(),
         fontsize=70,
         color='yellow',
-        font='Arial-Bold',
+        font='Liberation-Sans-Bold',
         stroke_color='black',
         stroke_width=2,
         method='caption',
@@ -41,9 +41,10 @@ def process_video(input_path, output_path):
         # 3. Generar Subtítulos por Segmentos
         subtitles = []
         for segment in transcript.segments:
-            txt = segment['text']
-            start = segment['start']
-            end = segment['end']
+            # En la versión nueva de OpenAI (>=1.0.0), los segmentos son objetos, no diccionarios
+            txt = segment.text if hasattr(segment, 'text') else segment['text']
+            start = segment.start if hasattr(segment, 'start') else segment['start']
+            end = segment.end if hasattr(segment, 'end') else segment['end']
             sub = create_styled_subtitle(txt, end - start, start)
             subtitles.append(sub)
         
