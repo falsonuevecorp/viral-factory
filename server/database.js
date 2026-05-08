@@ -4,8 +4,13 @@ const { open } = require('sqlite');
 let db;
 
 async function initDB() {
+    // Usar una ruta persistente si estamos en producción, o local si no.
+    const dbPath = process.env.RAILWAY_VOLUME_MOUNT_PATH 
+        ? path.join(process.env.RAILWAY_VOLUME_MOUNT_PATH, 'viral.db')
+        : './server/viral.db';
+
     db = await open({
-        filename: './server/viral.db',
+        filename: dbPath,
         driver: sqlite3.Database
     });
 
