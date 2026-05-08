@@ -27,7 +27,16 @@ async function handleUpload(file) {
             body: formData
         });
 
-        const result = await response.json();
+        // Intentar parsear como JSON, si no, como texto para errores del servidor web (ej. 413)
+        let result;
+        const contentType = response.headers.get("content-type");
+        if (contentType && contentType.indexOf("application/json") !== -1) {
+            result = await response.json();
+        } else {
+            const textError = await response.text();
+            throw new Error('Error del servidor: ' + response.status + ' - ' + textError.substring(0, 50));
+        }
+        
         console.log('Server response:', result);
         
         if (result.success) {
@@ -41,11 +50,11 @@ async function handleUpload(file) {
                 loadVideos();
             }
         } else {
-            throw new Error('Upload failed');
+            throw new Error(result.error || 'Upload failed sin detalles');
         }
     } catch (error) {
         console.error('Error uploading video:', error);
-        alert('Error al conectar con el motor de ViralFactory. ¿Está el server encendido?');
+        alert('Error al subir video: ' + error.message);
         dropZone.innerHTML = originalHTML;
         dropZone.style.pointerEvents = 'auto';
     }
