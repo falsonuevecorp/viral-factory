@@ -148,7 +148,7 @@ async function loadVideos() {
                         </div>
 
                         ${isCompleted ? `
-                            <button class="bg-primary-fixed-dim text-black font-label-sm px-2 py-1 rounded text-[10px] ml-auto hover:bg-white transition-colors" onclick="event.stopPropagation(); window.open('/${video.output_path}', '_blank')">DESCARGAR</button>
+                            <button class="bg-primary-fixed-dim text-black font-label-sm px-2 py-1 rounded text-[10px] ml-auto hover:bg-white transition-colors" onclick="event.stopPropagation(); window.location.href='/api/download/${video.id}'">DESCARGAR</button>
                         ` : ''}
                     </div>
                 </div>

@@ -122,6 +122,23 @@ app.get('/api/videos', async (req, res) => {
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+app.get('/api/download/:id', async (req, res) => {
+    try {
+        const db = getDb();
+        const video = await db.get('SELECT * FROM videos WHERE id = ?', [req.params.id]);
+        if (!video || !video.output_path || !fs.existsSync(video.output_path)) {
+            return res.status(404).send('Video no encontrado o aún procesando.');
+        }
+        const ext = path.extname(video.original_name) || '.mp4';
+        const baseName = path.basename(video.original_name, ext);
+        const downloadName = `${baseName}_viral${ext}`;
+        // res.download fuerza la cabecera Content-Disposition: attachment
+        res.download(path.resolve(video.output_path), downloadName);
+    } catch (e) {
+        res.status(500).send(e.message);
+    }
+});
+
 app.get('/health', (req, res) => res.status(200).send('OK'));
 
 async function startServer() {
