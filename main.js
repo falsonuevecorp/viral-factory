@@ -37,6 +37,7 @@ uploadBtn.addEventListener('click', () => {
 
 fileInput.addEventListener('change', (e) => {
     const file = e.target.files[0];
+    console.log("File selected:", file);
     if (file) {
         handleUpload(file);
     }
@@ -45,6 +46,7 @@ fileInput.addEventListener('change', (e) => {
 // --- API Logic ---
 
 async function handleUpload(file) {
+    console.log("Iniciando subida de:", file.name, "Peso:", file.size);
     const formData = new FormData();
     formData.append('video', file);
     formData.append('template', selectedTemplate); // Send the selected template
@@ -85,6 +87,7 @@ async function handleUpload(file) {
     } catch (error) {
         console.error('Error uploading video:', error);
         alert('Error al subir video: ' + error.message);
+        fileInput.value = ''; // CRITICAL: Clear the input on error so it can trigger 'change' again!
         progressOverlay.classList.add('hidden');
         progressOverlay.classList.remove('flex');
         uploadBtn.style.pointerEvents = 'auto';
