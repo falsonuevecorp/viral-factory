@@ -9,41 +9,53 @@ from dotenv import load_dotenv
 load_dotenv()
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-def create_styled_subtitle(text, duration, start_time, template_name="hormozi"):
+def create_styled_subtitle(text, duration, start_time, template_name, video_width, video_height):
     text = text.upper()
     
+    # Text wrap width is 85% of video width
+    text_width = int(video_width * 0.85)
+    
     if template_name == "cinematic":
+        # Posición más abajo (90% de la altura), texto elegante
+        y_pos = int(video_height * 0.85)
+        font_size = int(video_width * 0.05) # 5% del ancho
         return TextClip(
             text,
-            fontsize=50,
+            fontsize=font_size,
             color='white',
             font='Liberation-Sans',
             method='caption',
-            size=(800, None)
-        ).set_start(start_time).set_duration(duration).set_position(('center', 850))
+            size=(text_width, None)
+        ).set_start(start_time).set_duration(duration).set_position(('center', y_pos))
         
     elif template_name == "neon":
+        # Posición clásica (80% de la altura)
+        y_pos = int(video_height * 0.80)
+        font_size = int(video_width * 0.07) # 7% del ancho
         return TextClip(
             text,
-            fontsize=65,
+            fontsize=font_size,
             color='#00f0ff',
             font='Liberation-Sans-Bold',
             method='caption',
-            size=(800, None)
-        ).set_start(start_time).set_duration(duration).set_position(('center', 800))
+            size=(text_width, None)
+        ).set_start(start_time).set_duration(duration).set_position(('center', y_pos))
         
     else:
-        # Default: hormozi
+        # Default: hormozi (Posición al 75% para impactar, letras más grandes)
+        y_pos = int(video_height * 0.75)
+        font_size = int(video_width * 0.09) # 9% del ancho
+        stroke_w = max(1, int(font_size * 0.04))
         return TextClip(
             text,
-            fontsize=75,
+            fontsize=font_size,
             color='yellow',
             font='Liberation-Sans-Bold',
             stroke_color='black',
-            stroke_width=3,
+            stroke_width=stroke_w,
             method='caption',
-            size=(800, None)
-        ).set_start(start_time).set_duration(duration).set_position(('center', 800))
+            size=(text_width, None)
+        ).set_start(start_time).set_duration(duration).set_position(('center', y_pos))
 
 def process_video(input_path, output_path, template_name="hormozi"):
     print(f"🎬 ViralFactory Engine: Procesando {input_path} con plantilla: {template_name}")
@@ -67,12 +79,14 @@ def process_video(input_path, output_path, template_name="hormozi"):
         
         # 3. Generar Subtítulos por Segmentos
         subtitles = []
+        video_w, video_h = clip.size
+        
         for segment in transcript.segments:
             # En la versión nueva de OpenAI (>=1.0.0), los segmentos son objetos, no diccionarios
             txt = segment.text if hasattr(segment, 'text') else segment['text']
             start = segment.start if hasattr(segment, 'start') else segment['start']
             end = segment.end if hasattr(segment, 'end') else segment['end']
-            sub = create_styled_subtitle(txt, end - start, start, template_name)
+            sub = create_styled_subtitle(txt, end - start, start, template_name, video_w, video_h)
             subtitles.append(sub)
         
         print(f"🎨 Aplicando {len(subtitles)} subtítulos estilo '{template_name}'...")
