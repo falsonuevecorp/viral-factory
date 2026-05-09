@@ -1,4 +1,5 @@
 let selectedTemplate = 'hormozi';
+let lastPreviewedVideoId = null; // Track auto-played videos
 
 // --- UI Interaction ---
 
@@ -111,9 +112,15 @@ async function loadVideos() {
         }
 
         // Render as Timeline Clips
-        videoList.innerHTML = videos.map(video => {
+        videoList.innerHTML = videos.map((video, index) => {
             const isCompleted = video.status === 'completed';
             const isFailed = video.status === 'failed';
+            
+            // Auto-preview the most recent completed video
+            if (isCompleted && lastPreviewedVideoId !== video.id && index === 0) {
+                lastPreviewedVideoId = video.id;
+                setTimeout(() => previewVideo('/' + video.output_path), 300);
+            }
             
             let statusColor = '#eab308'; // Processing (Yellow)
             let bgClass = 'bg-surface';
@@ -137,7 +144,7 @@ async function loadVideos() {
                         
                         <div class="ml-3 flex flex-col justify-center flex-grow">
                             <span class="font-label-sm text-label-sm ${isCompleted ? 'text-primary-fixed-dim' : 'text-on-surface'} truncate drop-shadow-sm">${video.original_name}</span>
-                            <span class="font-timecode text-[10px] uppercase" style="color: ${statusColor}">${video.status} ${isFailed ? '- HAZ CLIC PARA VER ERROR' : ''}</span>
+                            <span class="font-timecode text-[10px] uppercase" style="color: ${statusColor}">${video.status} ${isFailed ? '- HAZ CLIC PARA VER ERROR' : (isCompleted ? '- HAZ CLIC PARA REPRODUCIR' : '')}</span>
                         </div>
 
                         ${isCompleted ? `
