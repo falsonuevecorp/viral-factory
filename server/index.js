@@ -71,6 +71,8 @@ const { spawn } = require('child_process');
 app.post('/api/process-video', upload.single('video'), async (req, res) => {
     if (!req.file) return res.status(400).send('No video file.');
     
+    const templateName = req.body.template || 'hormozi';
+
     try {
         const db = getDb();
         const result = await db.run(
@@ -81,7 +83,7 @@ app.post('/api/process-video', upload.single('video'), async (req, res) => {
         const outputPath = `uploads/output_${videoId}.mp4`;
 
         // Ejecutar motor IA en segundo plano
-        const pythonProcess = spawn('python3', ['scripts/editor.py', req.file.path, outputPath]);
+        const pythonProcess = spawn('python3', ['scripts/editor.py', req.file.path, outputPath, templateName]);
         let errorOutput = '';
 
         pythonProcess.stderr.on('data', (data) => {

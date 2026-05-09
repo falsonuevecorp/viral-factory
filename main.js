@@ -1,27 +1,59 @@
-document.getElementById('drop-zone').addEventListener('click', (e) => {
-    console.log('Drop-zone clicked!');
-    document.getElementById('file-input').click();
+let selectedTemplate = 'hormozi';
+
+// --- UI Interaction ---
+
+document.querySelectorAll('.template-option').forEach(el => {
+    el.addEventListener('click', () => {
+        // Remove active state from all
+        document.querySelectorAll('.template-option').forEach(opt => {
+            opt.querySelector('.template-indicator').classList.add('hidden');
+            opt.querySelector('.template-label').classList.remove('text-primary-fixed-dim');
+            opt.querySelector('.template-label').classList.add('text-on-surface-variant');
+            const bgDiv = opt.querySelector('.aspect-video');
+            bgDiv.classList.remove('border-primary-fixed-dim');
+            bgDiv.classList.add('border-outline-variant');
+        });
+
+        // Add active state to clicked
+        el.querySelector('.template-indicator').classList.remove('hidden');
+        el.querySelector('.template-label').classList.add('text-primary-fixed-dim');
+        el.querySelector('.template-label').classList.remove('text-on-surface-variant');
+        const bgDiv = el.querySelector('.aspect-video');
+        bgDiv.classList.add('border-primary-fixed-dim');
+        bgDiv.classList.remove('border-outline-variant');
+
+        selectedTemplate = el.getAttribute('data-template');
+        console.log("Template seleccionado:", selectedTemplate);
+    });
 });
 
-document.getElementById('file-input').addEventListener('change', (e) => {
+// Upload button binding
+const uploadBtn = document.getElementById('upload-btn');
+const fileInput = document.getElementById('file-input');
+
+uploadBtn.addEventListener('click', () => {
+    fileInput.click();
+});
+
+fileInput.addEventListener('change', (e) => {
     const file = e.target.files[0];
     if (file) {
-        console.log('File selected:', file.name);
         handleUpload(file);
     }
 });
 
+// --- API Logic ---
+
 async function handleUpload(file) {
     const formData = new FormData();
     formData.append('video', file);
+    formData.append('template', selectedTemplate); // Send the selected template
 
-    // Mostrar estado de carga en el dropzone, pero solo cambiando el contenido visual, no el input
-    const dropZone = document.getElementById('drop-zone');
-    const uploadContent = dropZone.querySelector('.upload-content');
-    const originalHTML = uploadContent.innerHTML;
-    
-    uploadContent.innerHTML = '<div style="text-align: center; color: white;"><h3>Subiendo video...</h3></div>';
-    dropZone.style.pointerEvents = 'none';
+    // Mostrar UI de carga
+    const progressOverlay = document.getElementById('upload-progress-overlay');
+    progressOverlay.classList.remove('hidden');
+    progressOverlay.classList.add('flex');
+    uploadBtn.style.pointerEvents = 'none';
 
     try {
         const response = await fetch('/api/process-video', {
@@ -29,7 +61,6 @@ async function handleUpload(file) {
             body: formData
         });
 
-        // Intentar parsear como JSON, si no, como texto para errores del servidor web (ej. 413)
         let result;
         const contentType = response.headers.get("content-type");
         if (contentType && contentType.indexOf("application/json") !== -1) {
@@ -39,15 +70,12 @@ async function handleUpload(file) {
             throw new Error('Error del servidor: ' + response.status + ' - ' + textError.substring(0, 50));
         }
         
-        console.log('Server response:', result);
-        
         if (result.success) {
-            // Limpiar input y volver a mostrar dropzone original
-            document.getElementById('file-input').value = '';
-            uploadContent.innerHTML = originalHTML;
-            dropZone.style.pointerEvents = 'auto';
+            fileInput.value = '';
+            progressOverlay.classList.add('hidden');
+            progressOverlay.classList.remove('flex');
+            uploadBtn.style.pointerEvents = 'auto';
             
-            // Recargar la lista de videos para ver el nuevo en 'processing'
             if (typeof loadVideos === 'function') {
                 loadVideos();
             }
@@ -57,8 +85,9 @@ async function handleUpload(file) {
     } catch (error) {
         console.error('Error uploading video:', error);
         alert('Error al subir video: ' + error.message);
-        uploadContent.innerHTML = originalHTML;
-        dropZone.style.pointerEvents = 'auto';
+        progressOverlay.classList.add('hidden');
+        progressOverlay.classList.remove('flex');
+        uploadBtn.style.pointerEvents = 'auto';
     }
 }
 
@@ -71,30 +100,69 @@ async function loadVideos() {
         const videoList = document.getElementById('video-list');
         const videoCount = document.getElementById('video-count');
         
-        videoCount.innerText = `${videos.length} videos`;
+        videoCount.innerText = `${videos.length} VIDEOS`;
         
         if (videos.length === 0) {
-            videoList.innerHTML = '<p class="text-zinc-500 text-center py-10">No hay videos en la cola.</p>';
+            videoList.innerHTML = '<p class="text-on-surface-variant/50 text-center py-10 font-label-sm text-xs mt-10">NO HAY VIDEOS EN LA COLA</p>';
             return;
         }
 
-        videoList.innerHTML = videos.map(video => `
-            <div class="video-item" style="border: 1px solid #333; padding: 10px; margin-bottom: 10px; border-radius: 8px; background: #111;">
-                <div style="display: flex; justify-content: space-between; align-items: center;">
-                    <h4 style="margin: 0; color: #fff; flex-grow: 1;">${video.original_name}</h4>
-                    <span style="padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: bold; flex-shrink: 0;
-                        background: ${video.status === 'completed' ? '#22c55e22' : video.status === 'failed' ? '#ef444422' : '#eab30822'};
-                        color: ${video.status === 'completed' ? '#22c55e' : video.status === 'failed' ? '#ef4444' : '#eab308'};">
-                        ${video.status.toUpperCase()}
-                    </span>
+        // Render as Timeline Clips
+        videoList.innerHTML = videos.map(video => {
+            const isCompleted = video.status === 'completed';
+            const isFailed = video.status === 'failed';
+            
+            let statusColor = '#eab308'; // Processing (Yellow)
+            let bgClass = 'bg-surface';
+            let borderClass = 'border-outline-variant';
+            
+            if (isCompleted) {
+                statusColor = '#00f0ff'; // Completed (Cyan/Primary)
+                bgClass = 'bg-surface-bright';
+                borderClass = 'border-primary-fixed-dim';
+            } else if (isFailed) {
+                statusColor = '#ffb4ab'; // Failed (Error)
+                borderClass = 'border-error';
+            }
+
+            return `
+                <div class="flex gap-unit w-full relative items-center min-h-[48px] group" onclick="${isCompleted ? `previewVideo('/${video.output_path}')` : ''}">
+                    <div class="h-12 w-full ${bgClass} border ${borderClass} rounded shrink-0 relative overflow-hidden flex items-center px-3 ${isCompleted ? 'cursor-pointer hover:bg-surface-container-high transition-colors' : ''}">
+                        
+                        <!-- Magnetic Handles for visual flair -->
+                        <div class="absolute left-0 top-0 bottom-0 w-2 border-r ${isCompleted ? 'border-primary-fixed-dim bg-primary-fixed-dim/10' : 'border-outline-variant bg-surface-container'}"></div>
+                        
+                        <div class="ml-3 flex flex-col justify-center flex-grow">
+                            <span class="font-label-sm text-label-sm ${isCompleted ? 'text-primary-fixed-dim' : 'text-on-surface'} truncate drop-shadow-sm">${video.original_name}</span>
+                            <span class="font-timecode text-[10px] uppercase" style="color: ${statusColor}">${video.status} ${isFailed ? '- HAZ CLIC PARA VER ERROR' : ''}</span>
+                        </div>
+
+                        ${isCompleted ? `
+                            <button class="bg-primary-fixed-dim text-black font-label-sm px-2 py-1 rounded text-[10px] ml-auto hover:bg-white transition-colors" onclick="event.stopPropagation(); window.open('/${video.output_path}', '_blank')">DESCARGAR</button>
+                        ` : ''}
+                    </div>
                 </div>
-                ${video.status === 'completed' ? `<a href="/${video.output_path}" target="_blank" style="color: #3b82f6; font-size: 14px; text-decoration: none; margin-top: 8px; display: inline-block;">Ver Resultado</a>` : ''}
-                ${video.status === 'failed' && video.error_message ? `<div style="margin-top: 8px; padding: 8px; background: #3f0000; color: #ffbaba; border-radius: 4px; font-size: 12px; font-family: monospace; white-space: pre-wrap; overflow-x: auto;">${video.error_message.substring(0, 300)}...</div>` : ''}
-            </div>
-        `).join('');
+                ${isFailed && video.error_message ? `
+                    <div class="bg-error-container text-on-error-container p-2 mt-1 rounded text-xs font-mono mb-2 overflow-x-auto w-full">
+                        ${video.error_message}
+                    </div>
+                ` : ''}
+            `;
+        }).join('');
     } catch (error) {
         console.error('Error loading videos:', error);
     }
+}
+
+// Function to preview video in the main canvas
+function previewVideo(url) {
+    const player = document.getElementById('main-video-player');
+    const placeholder = document.getElementById('video-placeholder');
+    
+    placeholder.style.display = 'none';
+    player.style.display = 'block';
+    player.src = url;
+    player.play();
 }
 
 // Cargar videos al iniciar
@@ -102,4 +170,3 @@ document.addEventListener('DOMContentLoaded', loadVideos);
 
 // Polling cada 5 segundos para actualizar estados
 setInterval(loadVideos, 5000);
-

@@ -1,51 +1,181 @@
 <!DOCTYPE html>
-<html lang="es">
+<html class="dark" lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ViralFactory | Automated Content</title>
-    <link rel="stylesheet" href="style.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <meta charset="utf-8"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <title>ViralFactory ProEdit Engine</title>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com" rel="preconnect"/>
+    <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+    <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet"/>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    
+    <script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "secondary-container": "#4a4949",
+                      "inverse-on-surface": "#313030",
+                      "tertiary-fixed": "#e2e2e2",
+                      "primary-fixed-dim": "#00dbe9",
+                      "on-tertiary-fixed": "#1a1c1c",
+                      "surface-dim": "#131313",
+                      "on-primary-container": "#006970",
+                      "on-secondary-fixed": "#1c1b1b",
+                      "on-tertiary-fixed-variant": "#454747",
+                      "secondary-fixed-dim": "#c9c6c5",
+                      "surface-container": "#20201f",
+                      "tertiary-container": "#d9d9d9",
+                      "surface": "#131313",
+                      "error": "#ffb4ab",
+                      "secondary-fixed": "#e5e2e1",
+                      "on-secondary-fixed-variant": "#474646",
+                      "surface-tint": "#00dbe9",
+                      "on-primary-fixed-variant": "#004f54",
+                      "on-tertiary": "#2f3131",
+                      "on-surface-variant": "#b9cacb",
+                      "background": "#131313",
+                      "on-error": "#690005",
+                      "on-background": "#e5e2e1",
+                      "primary-container": "#00f0ff",
+                      "tertiary": "#f5f5f5",
+                      "on-tertiary-container": "#5d5f5f",
+                      "on-primary-fixed": "#002022",
+                      "outline-variant": "#3b494b",
+                      "surface-container-highest": "#353535",
+                      "surface-container-lowest": "#0e0e0e",
+                      "surface-variant": "#353535",
+                      "error-container": "#93000a",
+                      "surface-container-high": "#2a2a2a",
+                      "surface-bright": "#393939",
+                      "on-error-container": "#ffdad6",
+                      "on-primary": "#00363a",
+                      "surface-container-low": "#1c1b1b",
+                      "on-secondary-container": "#bab8b7",
+                      "secondary": "#c9c6c5",
+                      "outline": "#849495",
+                      "primary": "#dbfcff",
+                      "on-secondary": "#313030",
+                      "tertiary-fixed-dim": "#c6c6c7",
+                      "inverse-primary": "#006970",
+                      "on-surface": "#e5e2e1",
+                      "inverse-surface": "#e5e2e1",
+                      "primary-fixed": "#7df4ff"
+              },
+              "spacing": {
+                      "margin-desktop": "32px",
+                      "margin-mobile": "16px",
+                      "gutter": "16px",
+                      "unit": "4px",
+                      "panel-padding": "12px"
+              },
+              "fontFamily": {
+                      "headline-lg": ["Geist"],
+                      "label-sm": ["JetBrains Mono"],
+                      "headline-md": ["Geist"],
+                      "body-md": ["Geist"],
+                      "body-lg": ["Geist"],
+                      "timecode": ["JetBrains Mono"]
+              }
+            }
+          }
+        }
+    </script>
+    <style>
+        ::-webkit-scrollbar { height: 4px; width: 4px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #3b494b; border-radius: 2px; }
+        ::-webkit-scrollbar-thumb:hover { background: #849495; }
+        body { font-family: 'Geist', sans-serif; min-height: max(884px, 100dvh); }
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
 </head>
-<body>
-    <div class="app-container">
-        <nav class="navbar">
-            <div class="logo">ViralFactory</div>
-            <div class="nav-links">
-                <a href="#" class="active">Editor</a>
-                <a href="#">Calendario</a>
-                <a href="#">Ajustes</a>
+<body class="bg-surface-container-lowest text-on-surface h-screen w-screen overflow-hidden flex flex-col font-body-md select-none">
+    
+    <!-- TopAppBar -->
+    <header class="bg-surface-container-lowest fixed top-0 w-full z-50 border-b border-outline-variant flex justify-between items-center h-14 px-margin-mobile">
+        <button class="text-primary-fixed-dim hover:bg-surface-container-high transition-colors active:scale-95 duration-100 flex items-center justify-center p-1 rounded">
+            <span class="material-symbols-outlined">menu</span>
+        </button>
+        <h1 class="font-label-sm tracking-widest text-primary-fixed-dim">VIRALFACTORY</h1>
+        <button id="upload-btn" class="bg-primary-fixed-dim/20 border border-primary-fixed-dim text-primary-fixed-dim hover:bg-primary-fixed-dim hover:text-black transition-colors active:scale-95 duration-100 flex items-center justify-center px-4 py-1.5 rounded cursor-pointer font-label-sm">
+            <span class="material-symbols-outlined text-[18px] mr-2">file_upload</span> UPLOAD
+        </button>
+        <input type="file" id="file-input" hidden accept="video/*">
+    </header>
+
+    <div class="h-14 shrink-0"></div>
+
+    <!-- Video Preview Section -->
+    <section class="w-full aspect-video bg-surface-container-highest relative flex flex-col justify-between shrink-0 border-b border-outline-variant">
+        <video id="main-video-player" class="absolute inset-0 w-full h-full object-contain bg-black" controls style="display: none;"></video>
+        
+        <div id="video-placeholder" class="absolute inset-0 bg-cover bg-center flex items-center justify-center bg-surface-dim">
+            <h2 class="text-on-surface-variant font-label-sm tracking-widest opacity-50 flex items-center gap-2">
+                <span class="material-symbols-outlined">movie</span> PREVIEW CANVAS
+            </h2>
+        </div>
+        <!-- Progress Overlay -->
+        <div id="upload-progress-overlay" class="absolute inset-0 bg-black/80 flex items-center justify-center z-10 hidden flex-col">
+            <span class="material-symbols-outlined text-primary-fixed-dim text-4xl animate-pulse mb-2">cloud_upload</span>
+            <span class="font-label-sm text-primary-fixed-dim tracking-widest">SUBIENDO AL MOTOR...</span>
+        </div>
+    </section>
+
+    <!-- Presets Gallery Panel -->
+    <section class="bg-surface-container-low p-panel-padding flex flex-col border-b border-outline-variant shrink-0">
+        <h2 class="font-label-sm text-on-surface-variant uppercase tracking-widest mb-3">LUT Gallery / Templates</h2>
+        <div class="flex gap-4 overflow-x-auto hide-scrollbar pb-2" id="template-gallery">
+            
+            <!-- Preset 1: Hormozi -->
+            <div class="flex flex-col gap-2 w-28 shrink-0 cursor-pointer group template-option" data-template="hormozi">
+                <div class="w-full aspect-video bg-surface-container border border-primary-fixed-dim relative overflow-hidden bg-cover bg-center rounded-sm" style="background-image: url('https://images.unsplash.com/photo-1550745165-9bc0b252726f?q=80&w=300&auto=format&fit=crop');">
+                    <div class="absolute inset-0 bg-black/50"></div>
+                    <div class="template-indicator absolute bottom-0 left-0 h-[2px] w-full bg-primary-fixed-dim"></div>
+                    <div class="absolute inset-0 flex items-center justify-center"><span class="text-yellow-400 font-bold text-sm tracking-tighter" style="-webkit-text-stroke: 1px black;">BOLD</span></div>
+                </div>
+                <span class="font-label-sm text-primary-fixed-dim text-center template-label">HORMOZI</span>
             </div>
-        </nav>
 
-        <main class="content">
-            <header class="hero">
-                <h1>Tu contenido, en piloto automático.</h1>
-                <p>Sube tu video crudo. Nosotros hacemos el resto.</p>
-            </header>
-
-            <div class="upload-zone" id="drop-zone">
-                <div class="upload-content" style="pointer-events: none;">
-                    <div class="icon-circle">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-                    </div>
-                    <h2>Arrastra tu video aquí</h2>
-                    <p>O haz clic para seleccionar un archivo</p>
+            <!-- Preset 2: Cinematic -->
+            <div class="flex flex-col gap-2 w-28 shrink-0 cursor-pointer group template-option" data-template="cinematic">
+                <div class="w-full aspect-video bg-surface-container border border-outline-variant group-hover:border-primary-fixed-dim transition-colors relative overflow-hidden bg-cover bg-center grayscale rounded-sm" style="background-image: url('https://images.unsplash.com/photo-1440404653325-ab127d49abc1?q=80&w=300&auto=format&fit=crop');">
+                    <div class="absolute inset-0 bg-black/60"></div>
+                    <div class="template-indicator absolute bottom-0 left-0 h-[2px] w-full bg-primary-fixed-dim hidden"></div>
+                    <div class="absolute inset-0 flex items-center justify-end flex-col pb-1"><span class="text-white font-serif text-[10px] drop-shadow-md tracking-widest">ELEGANT</span></div>
                 </div>
-                <input type="file" id="file-input" hidden accept="video/*">
+                <span class="font-label-sm text-on-surface-variant text-center group-hover:text-on-surface transition-colors template-label">CINEMATIC</span>
             </div>
 
-            <section class="queue-section">
-                <div class="queue-header">
-                    <h3>Cola de Procesamiento</h3>
-                    <span class="badge" id="video-count">0 videos</span>
+            <!-- Preset 3: Neon Minimal -->
+            <div class="flex flex-col gap-2 w-28 shrink-0 cursor-pointer group template-option" data-template="neon">
+                <div class="w-full aspect-video bg-surface-container border border-outline-variant group-hover:border-primary-fixed-dim transition-colors relative overflow-hidden bg-cover bg-center hue-rotate-90 saturate-50 rounded-sm" style="background-image: url('https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=300&auto=format&fit=crop');">
+                    <div class="absolute inset-0 bg-black/70"></div>
+                    <div class="template-indicator absolute bottom-0 left-0 h-[2px] w-full bg-primary-fixed-dim hidden"></div>
+                    <div class="absolute inset-0 flex items-center justify-center"><span class="text-[#00f0ff] font-sans text-[11px] tracking-wide">CYAN</span></div>
                 </div>
-                <div id="video-list">
-                    <p class="text-zinc-500 text-center py-10">Conectando con la base de datos...</p>
-                </div>
-            </section>
-        </main>
-    </div>
+                <span class="font-label-sm text-on-surface-variant text-center group-hover:text-on-surface transition-colors template-label">NEON MINIMAL</span>
+            </div>
+
+        </div>
+    </section>
+
+    <!-- Multi-track Timeline Section / Queue -->
+    <section class="flex-grow flex flex-col bg-surface-container-low relative overflow-hidden">
+        <div class="h-6 border-b border-outline-variant flex items-end px-margin-mobile relative overflow-hidden bg-surface-container-lowest shrink-0 justify-between">
+            <span class="font-timecode text-[10px] text-on-surface-variant mb-1">PROCESSING QUEUE</span>
+            <span class="font-timecode text-[10px] text-primary-fixed-dim mb-1" id="video-count">0 VIDEOS</span>
+        </div>
+
+        <div class="flex-grow overflow-auto relative p-panel-padding flex flex-col gap-unit" id="video-list">
+            <!-- Timeline clips will be injected here -->
+        </div>
+    </section>
+
     <script src="main.js"></script>
 </body>
 </html>
