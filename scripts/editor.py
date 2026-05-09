@@ -86,9 +86,17 @@ def process_video(input_path, output_path, template_name="hormozi"):
             txt = segment.text if hasattr(segment, 'text') else segment['text']
             start = segment.start if hasattr(segment, 'start') else segment['start']
             end = segment.end if hasattr(segment, 'end') else segment['end']
+            
+            # Skip empty segments
+            if not txt or not txt.strip():
+                continue
+                
             sub = create_styled_subtitle(txt, end - start, start, template_name, video_w, video_h)
             subtitles.append(sub)
         
+        if not subtitles:
+            raise ValueError("No se detectó ninguna voz o diálogo en el video. Sube un video donde alguien esté hablando.")
+            
         print(f"🎨 Aplicando {len(subtitles)} subtítulos estilo '{template_name}'...")
         
         # Superponer subtítulos al video original

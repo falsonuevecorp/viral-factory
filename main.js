@@ -132,12 +132,16 @@ async function loadVideos() {
                 borderClass = 'border-primary-fixed-dim';
             } else if (isFailed) {
                 statusColor = '#ffb4ab'; // Failed (Error)
-                borderClass = 'border-error';
+            let safeErrorMessage = 'Error desconocido';
+            if (video.error_message) {
+                // Escape comillas simples, dobles y saltos de línea para que funcione en el onclick inline
+                safeErrorMessage = video.error_message.replace(/'/g, "\\'").replace(/"/g, '\\"').replace(/\n/g, '\\n').replace(/\r/g, '');
             }
 
             return `
-                <div class="flex gap-unit w-full relative items-center min-h-[48px] group" onclick="${isCompleted ? `previewVideo('/${video.output_path}')` : ''}">
-                    <div class="h-12 w-full ${bgClass} border ${borderClass} rounded shrink-0 relative overflow-hidden flex items-center px-3 ${isCompleted ? 'cursor-pointer hover:bg-surface-container-high transition-colors' : ''}">
+                <div class="flex gap-unit w-full relative items-center min-h-[48px] group" 
+                     onclick="${isCompleted ? `previewVideo('/${video.output_path}')` : (isFailed ? `alert('${safeErrorMessage}')` : '')}">
+                    <div class="h-12 w-full ${bgClass} border ${borderClass} rounded shrink-0 relative overflow-hidden flex items-center px-3 ${(isCompleted || isFailed) ? 'cursor-pointer hover:bg-surface-container-high transition-colors' : ''}">
                         
                         <!-- Magnetic Handles for visual flair -->
                         <div class="absolute left-0 top-0 bottom-0 w-2 border-r ${isCompleted ? 'border-primary-fixed-dim bg-primary-fixed-dim/10' : 'border-outline-variant bg-surface-container'}"></div>
