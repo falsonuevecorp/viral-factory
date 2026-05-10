@@ -61,8 +61,25 @@ def process_video(input_path, output_path, template_name="hormozi"):
     print(f"🎬 ViralFactory Engine: Procesando {input_path} con plantilla: {template_name}")
     
     try:
+        from moviepy.video.fx.all import colorx, lum_contrast, gamma_corr
+
         clip = VideoFileClip(input_path)
         
+        # --- APLICAR FILTROS DE COLOR (LUT SIMULADOS) ---
+        print(f"✨ Aplicando corrección de color para template: {template_name}...")
+        if template_name == "cinematic":
+            # Cinematic: Más contraste, un poco más oscuro, tonos más fríos
+            clip = clip.fx(lum_contrast, lum=0, contrast=0.2, contrast_thr=127)
+            clip = clip.fx(gamma_corr, gamma=1.1)
+        elif template_name == "neon":
+            # Neon: Alto contraste, vibrante, ligeramente sobreexpuesto
+            clip = clip.fx(lum_contrast, lum=10, contrast=0.3, contrast_thr=127)
+            clip = clip.fx(colorx, 1.2) # Saturación/Brillo general aumentado
+        else:
+            # Hormozi: Colores muy vivos, brillantes y alto contraste para captar atención
+            clip = clip.fx(colorx, 1.15)
+            clip = clip.fx(lum_contrast, lum=15, contrast=0.15, contrast_thr=127)
+
         if clip.audio is None:
             raise ValueError("El video subido no tiene pista de audio. No se pueden generar subtítulos.")
             
