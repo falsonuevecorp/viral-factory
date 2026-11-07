@@ -71,7 +71,7 @@ const { spawn } = require('child_process');
 app.post('/api/process-video', upload.single('video'), async (req, res) => {
     if (!req.file) return res.status(400).send('No video file.');
     
-    const templateName = req.body.template || 'hormozi';
+    const templateName = req.body.template || 'minimal';
 
     try {
         const db = getDb();

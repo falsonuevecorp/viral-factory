@@ -46,6 +46,29 @@ SR = 48000
 # Templates: cada uno es un "estilo de editor" completo
 # ---------------------------------------------------------------------------
 TEMPLATES = {
+    # Estilo "creador educativo": subtítulos pequeños y limpios, color natural, cortes secos
+    "minimal": {
+        "max_gap": 0.4,
+        "zooms": [1.0, 1.08],                  # punch-in sutil al alternar planos
+        "emphasis_zoom": None,
+        "max_piece": 4.0,
+        "transitions": [],                     # sólo cortes secos
+        "trans_dur": 0.0,
+        "trans_min_gap": 99,
+        "trans_spacing": 99,
+        "hook_zoom": None,
+        "progress": None,
+        "mood": "emocional",
+        "sfx_gain": 0.0,
+        "words_per_chunk": 3,
+        "max_chars": 22,
+        "uppercase": False,
+        "highlight": None,
+        "emphasis": None,
+        # look natural cálido, contraste suave con negros ligeramente levantados
+        "grade": "curves=m='0/0.02 0.5/0.5 1/0.98':r='0/0 0.5/0.51 1/1':b='0/0 0.5/0.49 1/0.98',"
+                 "eq=saturation=0.95",
+    },
     "hormozi": {
         "max_gap": 0.45,                       # silencios más largos se cortan
         "zooms": [1.0, 1.14, 1.0, 1.07],       # encuadres que se alternan
@@ -309,7 +332,7 @@ def build_pieces(words, segments, cfg, fps):
         if i > 0 and not p["cut_before"] and abs(p["zoom"] - pieces[i - 1]["zoom"]) < 0.01 and len(cfg["zooms"]) > 1:
             p["zoom"] = next(z for z in cfg["zooms"] if abs(z - pieces[i - 1]["zoom"]) >= 0.01)
         p["transition"] = None
-        if (p["cut_before"] and p["gap_before"] >= cfg["trans_min_gap"] and n_trans < MAX_TRANSITIONS
+        if (cfg["transitions"] and p["cut_before"] and p["gap_before"] >= cfg["trans_min_gap"] and n_trans < MAX_TRANSITIONS
                 and kept - last_trans >= cfg["trans_spacing"]
                 and dur > td * 2 + 0.1 and (pieces[i - 1]["end"] - pieces[i - 1]["start"]) > td * 2 + 0.1):
             p["transition"] = cfg["transitions"][n_trans % len(cfg["transitions"])]
@@ -514,7 +537,12 @@ def chunk_words(words, cfg):
 def build_ass(words, template, out_w, out_h, total):
     cfg = TEMPLATES[template]
     ref = min(out_w, out_h)
-    if template == "cinematic":
+    if template == "minimal":
+        size = int(out_w * 0.07)
+        style = (f"Style: Main,Liberation Sans,{size},&H00FFFFFF,&H00FFFFFF,&H00000000,&HA0000000,"
+                 f"0,0,0,0,100,100,-1,0,1,0,{max(1, size * 0.04):.1f},2,"
+                 f"{int(out_w * 0.08)},{int(out_w * 0.08)},{int(out_h * 0.30)},1")
+    elif template == "cinematic":
         size = int(ref * 0.055)
         style = (f"Style: Main,Liberation Sans,{size},&H00FFFFFF,&H70FFFFFF,&H00000000,&H90000000,"
                  f"0,0,0,0,100,100,1,0,1,{max(1, size * 0.04):.1f},{max(1, size * 0.06):.1f},2,"
@@ -544,6 +572,12 @@ def build_ass(words, template, out_w, out_h, total):
     for ci, chunk in enumerate(chunks):
         next_start = chunks[ci + 1][0]["start"] if ci + 1 < len(chunks) else total
         chunk_end = min(next_start, chunk[-1]["end"] + 0.35)
+
+        if template == "minimal":
+            text = " ".join(re.sub(r"[.,;:…]+$", "", ass_escape(w["word"])) for w in chunk)
+            events.append(f"Dialogue: 0,{ass_time(chunk[0]['start'])},{ass_time(chunk_end)},Main,,0,0,0,,"
+                          f"{{\\fad(90,60)\\blur3\\t(0,140,\\blur0)}}{text}")
+            continue
 
         if template == "cinematic":
             parts, cursor = [], chunk[0]["start"]
@@ -715,11 +749,11 @@ def build_filtergraph(pieces, groups, info, cfg, crop_dims, ass_path, out_w, out
 # ---------------------------------------------------------------------------
 # Pipeline principal
 # ---------------------------------------------------------------------------
-def process_video(input_path, output_path, template="hormozi", aspect="original", cuts=True,
+def process_video(input_path, output_path, template="minimal", aspect="original", cuts=True,
                   transcript_json=None, music="auto", sfx=True):
     if template not in TEMPLATES:
-        log(f"⚠️  Template '{template}' desconocido, usando 'hormozi'.")
-        template = "hormozi"
+        log(f"⚠️  Template '{template}' desconocido, usando 'minimal'.")
+        template = "minimal"
     cfg = TEMPLATES[template]
     log(f"🎬 ViralFactory Engine PRO: {input_path} | template: {template} | formato: {aspect}")
 
@@ -806,7 +840,7 @@ def main():
     parser = argparse.ArgumentParser(description="ViralFactory Engine PRO")
     parser.add_argument("input")
     parser.add_argument("output")
-    parser.add_argument("template", nargs="?", default="hormozi")
+    parser.add_argument("template", nargs="?", default="minimal")
     parser.add_argument("--aspect", choices=["original", "9:16", "1:1"], default=os.getenv("VF_ASPECT", "original"))
     parser.add_argument("--music", default=os.getenv("VF_MUSIC", "auto"),
                         help="auto (music/<mood>/ o generada), none, o ruta a un archivo")

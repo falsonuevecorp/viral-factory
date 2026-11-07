@@ -1,4 +1,4 @@
-let selectedTemplate = 'hormozi';
+let selectedTemplate = 'minimal';
 let lastPreviewedVideoId = null; // Track auto-played videos
 
 // --- UI Interaction ---
