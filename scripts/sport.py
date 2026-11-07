@@ -122,17 +122,123 @@ def choose_windows(clips, shots):
         used[ci].append((a, a + need))
         chosen.append({**shot, "clip": ci, "src_start": float(a)})
         last_clip = ci
-    # orden narrativo: por clip y tiempo, conservando la grilla de beats
-    order = sorted(range(len(chosen)), key=lambda k: (chosen[k]["clip"], chosen[k]["src_start"]))
+    # se conserva el orden de la grilla (planos hero repartidos cada 4)
     durs = [s["dur"] for s in chosen]
-    result, t = [], 0.0
-    for k in order:
-        result.append(chosen[k])
-    # reasignar tiempos de salida en el nuevo orden
+    result, t = list(chosen), 0.0
     for s in result:
         s["out_start"] = t
         t += s["dur"]
     return result, sum(durs)
+
+
+# ---------------------------------------------------------------------------
+# Efectos por plano
+# ---------------------------------------------------------------------------
+RAMP = 1.5   # rampa de velocidad: en el centro del plano va a 1/(1+RAMP) = 0.4x
+
+
+def assign_effects(shots, period):
+    """Decide el efecto de cada plano según su posición en el compás."""
+    for n, s in enumerate(shots):
+        beat = int(round(s["out_start"] / period)) % 8      # posición en la frase de 2 compases
+        if n == 0 or (n == len(shots) - 1 and len(shots) > 2):
+            s["fx"] = "impact"                 # arranque (hook) y cierre con golpe
+        elif s["hero"]:
+            s["fx"] = "ramp"                   # rampa de velocidad + push-in lento
+        elif beat == 0:
+            s["fx"] = "impact"                 # flash + zoom de impacto + sacudida (cada 2 compases)
+        elif beat == 4:
+            s["fx"] = "glitch" if n % 2 else "cut"   # separación RGB, o corte seco para respirar
+        else:
+            s["fx"] = "whip"                   # barrido con desenfoque de movimiento
+    for n, s in enumerate(shots):
+        s["whip_out"] = n + 1 < len(shots) and shots[n + 1]["fx"] == "whip"
+
+
+def shot_filter(s, W, H, hdr):
+    dur = s["dur"]
+    nfr = max(1, round(dur * FPS))
+    tm = f",{TONEMAP}" if hdr else ""
+    chain = f"scale={W}:{H}:force_original_aspect_ratio=increase:flags=lanczos,crop={W}:{H}{tm}"
+    if s["fx"] == "ramp":
+        D = s["src_dur"]
+        chain += (f",setpts='((T-STARTT)+{RAMP}*((T-STARTT)/2-{D:.4f}/(4*PI)*sin(2*PI*(T-STARTT)/{D:.4f})))/TB'")
+    chain += f",fps={FPS}"
+    # zoom / sacudida con zoompan (un frame de salida por frame de entrada)
+    if s["fx"] == "impact":
+        p = int(FPS * 0.32)
+        z = f"1.05+0.16*pow(max(0,1-on/{p}),2)"
+        sx = f"16*sin(on*2.3)*exp(-on/5)"
+        sy = f"12*cos(on*1.9)*exp(-on/5)"
+    elif s["fx"] == "ramp":
+        z = f"1.0+0.09*on/{nfr}"
+        sx = sy = "0"
+    elif s["fx"] == "glitch":
+        z = "1.05"
+        sx = f"18*sin(on*3.1)*exp(-on/3)"
+        sy = "0"
+    else:
+        z = "1.0"
+        sx = sy = "0"
+    if z != "1.0" or sx != "0":
+        chain += (f",zoompan=z='{z}':d=1:s={W}x{H}:fps={FPS}"
+                  f":x='iw/2-(iw/zoom/2)+{sx}':y='ih/2-(ih/zoom/2)+{sy}'")
+    end = dur - 0.1
+    if s["fx"] == "impact":
+        chain += ",fade=t=in:st=0:d=0.13:color=white"
+    if s["fx"] == "whip":
+        chain += ",dblur=angle=0:radius=70:enable='lt(t,0.1)'"
+    if s["whip_out"]:
+        chain += f",dblur=angle=180:radius=70:enable='gt(t,{end:.3f})'"
+    if s["fx"] == "glitch":
+        chain += ",rgbashift=rh=-16:bh=16:gv=6:enable='lt(t,0.14)'"
+    return chain + ",setsar=1,format=yuv420p"
+
+
+def synth_riser(dur=1.6, seed=11):
+    rnd = np.random.default_rng(seed)
+    n = int(dur * SR)
+    t = np.arange(n) / SR
+    x = t / dur
+    noise = rnd.uniform(-1, 1, n)
+    out, low, band = np.zeros(n), 0.0, 0.0
+    fc = 300 + 6000 * x ** 2
+    f = 2 * np.sin(np.pi * fc / SR)
+    for i in range(n):                       # filtro paso banda que sube
+        low += f[i] * band
+        high = noise[i] - low - 0.5 * band
+        band += f[i] * high
+        out[i] = band
+    tone = np.sin(2 * np.pi * np.cumsum(180 + 700 * x ** 2) / SR) * 0.35
+    return (out + tone) * x ** 2.2
+
+
+def build_sfx_track(path, shots, total):
+    track = np.zeros(int((total + 1) * SR))
+
+    def put(sig, at, gain):
+        sig = np.asarray(sig, dtype=np.float64)
+        sig = sig / max(1e-9, np.abs(sig).max())
+        i = int(max(0, at) * SR)
+        j = min(len(track), i + len(sig))
+        if j > i:
+            track[i:j] += sig[: j - i] * gain
+
+    whoosh = editor.synth_whoosh(0.45)
+    impact = editor.synth_impact(0.9)
+    for n, s in enumerate(shots):
+        if s["fx"] == "whip":
+            put(whoosh, s["out_start"] - 0.22, 0.35)
+        elif s["fx"] == "impact":
+            put(impact, s["out_start"], 0.45 if n else 0.6)
+        elif s["fx"] == "glitch":
+            put(whoosh[::2], s["out_start"] - 0.05, 0.25)
+    if len(shots) > 2:                       # riser hacia el último plano y golpe final
+        last = shots[-1]["out_start"]
+        put(synth_riser(1.6), last - 1.6, 0.30)
+        put(impact, last, 0.7)
+    editor.write_wav(path, list(np.clip(track, -1, 1)))
+    return path
 
 
 # ---------------------------------------------------------------------------
@@ -146,11 +252,13 @@ def build_text_ass(events, W, H):
         "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, "
         "Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, "
         "Alignment, MarginL, MarginR, MarginV, Encoding\n"
-        f"Style: T,Liberation Sans,{size},&H00FFFFFF,&H00FFFFFF,&HA0000000,&H90000000,"
+        f"Style: T,Inter Semi Bold,{size},&H00FFFFFF,&H00FFFFFF,&HA0000000,&H90000000,"
         f"0,0,0,0,100,100,-0.5,0,1,{max(2, size * 0.07):.1f},0,5,40,40,0,1\n\n"
         "[Events]\nFormat: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\n"
     )
-    lines = [f"Dialogue: 0,{ass_time(a)},{ass_time(b)},T,,0,0,0,,{{\\pos({W // 2},{int(H * 0.5)})\\fad(70,50)\\blur5}}{txt}"
+    # entrada tipo keynote de Apple: el espaciado se cierra, escala y opacidad se asientan
+    anim = "\\fad(60,90)\\blur5\\fsp14\\fscx106\\fscy106\\1a&H50&\\t(0,280,0.5,\\fsp-0.5\\fscx100\\fscy100\\1a&H00&)"
+    lines = [f"Dialogue: 0,{ass_time(a)},{ass_time(b)},T,,0,0,0,,{{\\pos({W // 2},{int(H * 0.5)}){anim}}}{txt}"
              for a, b, txt in events]
     return header + "\n".join(lines) + "\n"
 
@@ -159,10 +267,11 @@ def text_from_lines(lines, shots):
     phrases = [ass_escape(p.strip()).replace("/", "\\N") for p in lines.split("|") if p.strip()]
     if not phrases:
         return []
-    per = max(1, len(shots) // len(phrases))
     events = []
-    for k, ph in enumerate(phrases):
-        group = shots[k * per:(k + 1) * per] if k < len(phrases) - 1 else shots[k * per:]
+    for k, ph in enumerate(phrases):                     # reparto proporcional de planos por frase
+        i0 = round(k * len(shots) / len(phrases))
+        i1 = round((k + 1) * len(shots) / len(phrases))
+        group = shots[i0:max(i1, i0 + 1)]
         if not group:
             break
         events.append((group[0]["out_start"], group[-1]["out_start"] + group[-1]["dur"], ph.lower()))
@@ -229,27 +338,22 @@ def process_sport(inputs, output_path, aspect="9:16", music="auto", lines=None, 
             end = cut_times[j] if j < len(cut_times) else target
             a, b = round(cut_times[i] * FPS) / FPS, round(end * FPS) / FPS
             if b - a > 2 / FPS:
-                speed = 0.5 if hero else 1.0
-                shots.append({"dur": b - a, "speed": speed, "src_dur": (b - a) * speed, "hero": hero})
+                src = (b - a) / (1 + RAMP / 2) if hero else (b - a)
+                shots.append({"dur": b - a, "speed": src / (b - a), "src_dur": src, "hero": hero})
             i, k = j, k + 1
         shots, total = choose_windows(clips, shots)
-        log(f"✂️  {len(shots)} planos al beat · {sum(s['hero'] for s in shots)} en cámara lenta · {total:.1f}s")
+        log(f"✂️  {len(shots)} planos al beat · {sum(s['hero'] for s in shots)} con rampa de velocidad · {total:.1f}s")
 
         W, H = (1080, 1920) if aspect == "9:16" else (1080, 1080) if aspect == "1:1" else (1920, 1080)
+        assign_effects(shots, period)
+        log("✨ Efectos: " + " ".join(s["fx"] for s in shots))
         files = []
         for n, s in enumerate(shots):
             c = clips[s["clip"]]
-            slow = ""
-            if s["speed"] < 1:
-                slow = f",setpts=PTS/{s['speed']}"
-                if c["info"]["fps"] < 50:
-                    slow += f",framerate=fps={FPS}"                    # mezcla de frames: cámara lenta fluida
-            tm = f",{TONEMAP}" if c["info"].get("hdr") else ""
-            vf = (f"scale={W}:{H}:force_original_aspect_ratio=increase:flags=lanczos,crop={W}:{H}{tm}"
-                  f"{slow},fps={FPS},setsar=1,format=yuv420p")
+            vf = shot_filter(s, W, H, c["info"].get("hdr"))
             out = os.path.join(work, f"shot_{n:03d}.mkv")
-            run(["ffmpeg", "-y", "-v", "error", "-ss", f"{s['src_start']:.3f}", "-i", c["path"],
-                 "-t", f"{s['src_dur']:.3f}", "-an", "-vf", vf, "-frames:v", str(round(s["dur"] * FPS)),
+            run(["ffmpeg", "-y", "-v", "error", "-ss", f"{s['src_start']:.3f}", "-t", f"{s['src_dur'] + 0.05:.3f}",
+                 "-i", c["path"], "-an", "-vf", vf, "-frames:v", str(round(s["dur"] * FPS)),
                  "-c:v", "libx264", "-preset", "ultrafast", "-crf", "12", "-g", "1", out])
             files.append(out)
         lst = os.path.join(work, "shots.txt")
@@ -276,13 +380,19 @@ def process_sport(inputs, output_path, aspect="9:16", music="auto", lines=None, 
             f.write(build_text_ass(events, W, H))
         log(f"🔤 {len(events)} textos al ritmo")
 
-        graph = (f"[0:v]{GRADE},ass='{filter_path(ass_path)}',format=yuv420p[vout];"
+        sfx_path = build_sfx_track(os.path.join(work, "sfx.wav"), shots, total)
+        pulse = f"eq=brightness='0.03*exp(-9*mod(t+{period - phase % period:.4f},{period:.4f}))':eval=frame"
+        graph = (f"[0:v]{GRADE},{pulse},{editor.ass_filter(ass_path)},"
+                 f"fade=t=out:st={max(0, total - 0.45):.3f}:d=0.45,format=yuv420p[vout];"
                  f"[1:a]aformat=sample_rates={SR}:channel_layouts=stereo,atrim=0:{total:.3f},asetpts=PTS-STARTPTS,"
-                 f"afade=t=out:st={max(0, total - 1.2):.3f}:d=1.2,loudnorm=I=-14:TP=-1.0:LRA=11,aresample=48000[aout]")
-        log("🎞️  Render final: color + texto + música...")
+                 f"afade=t=out:st={max(0, total - 1.2):.3f}:d=1.2[mus];"
+                 f"[2:a]aformat=sample_rates={SR}:channel_layouts=stereo,atrim=0:{total:.3f}[sfx];"
+                 f"[mus][sfx]amix=inputs=2:duration=first:normalize=0,"
+                 f"loudnorm=I=-14:TP=-1.0:LRA=11,aresample=48000[aout]")
+        log("🎞️  Render final: color + pulso al beat + texto + música + SFX...")
         os.makedirs(os.path.dirname(os.path.abspath(output_path)), exist_ok=True)
         run(["ffmpeg", "-y", "-v", "error", "-f", "concat", "-safe", "0", "-i", lst,
-             "-stream_loop", "-1", "-i", music_path,
+             "-stream_loop", "-1", "-i", music_path, "-i", sfx_path,
              "-filter_complex", graph, "-map", "[vout]", "-map", "[aout]", "-t", f"{total:.3f}",
              "-c:v", "libx264", "-preset", os.getenv("VF_PRESET", "fast"), "-crf", "18", "-pix_fmt", "yuv420p",
              "-c:a", "aac", "-b:a", "192k", "-movflags", "+faststart", output_path])

@@ -40,6 +40,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+FONTS_DIR = os.path.join(ROOT, "fonts")   # Inter (alternativa libre a SF Pro de Apple)
 SR = 48000
 
 # ---------------------------------------------------------------------------
@@ -564,23 +565,23 @@ def build_ass(words, template, out_w, out_h, total):
     ref = min(out_w, out_h)
     if template in ("minimal", "explainer"):
         size = int(out_w * 0.07)
-        style = (f"Style: Main,Liberation Sans,{size},&H00FFFFFF,&H00FFFFFF,&H00000000,&HA0000000,"
+        style = (f"Style: Main,Inter Medium,{size},&H00FFFFFF,&H00FFFFFF,&H00000000,&HA0000000,"
                  f"0,0,0,0,100,100,-1,0,1,0,{max(1, size * 0.04):.1f},2,"
                  f"{int(out_w * 0.08)},{int(out_w * 0.08)},{int(out_h * 0.30)},1")
     elif template == "cinematic":
         size = int(ref * 0.055)
-        style = (f"Style: Main,Liberation Sans,{size},&H00FFFFFF,&H70FFFFFF,&H00000000,&H90000000,"
+        style = (f"Style: Main,Inter,{size},&H00FFFFFF,&H70FFFFFF,&H00000000,&H90000000,"
                  f"0,0,0,0,100,100,1,0,1,{max(1, size * 0.04):.1f},{max(1, size * 0.06):.1f},2,"
                  f"{int(out_w * 0.08)},{int(out_w * 0.08)},{int(out_h * 0.08)},1")
     elif template == "neon":
         size = int(ref * 0.075)
-        style = (f"Style: Main,Liberation Sans,{size},&H00F5F5F5,&H00F5F5F5,&H00FFF000,&H00000000,"
-                 f"-1,0,0,0,100,100,2,0,1,{max(2, size * 0.05):.1f},0,2,"
+        style = (f"Style: Main,Inter Bold,{size},&H00F5F5F5,&H00F5F5F5,&H00FFF000,&H00000000,"
+                 f"0,0,0,0,100,100,2,0,1,{max(2, size * 0.05):.1f},0,2,"
                  f"{int(out_w * 0.07)},{int(out_w * 0.07)},{int(out_h * 0.20)},1")
     else:
         size = int(ref * 0.09)
-        style = (f"Style: Main,Liberation Sans,{size},&H00FFFFFF,&H00FFFFFF,&H00000000,&H80000000,"
-                 f"-1,0,0,0,100,100,1,0,1,{max(3, size * 0.09):.1f},{max(2, size * 0.04):.1f},2,"
+        style = (f"Style: Main,Inter ExtraBold,{size},&H00FFFFFF,&H00FFFFFF,&H00000000,&H80000000,"
+                 f"0,0,0,0,100,100,1,0,1,{max(3, size * 0.09):.1f},{max(2, size * 0.04):.1f},2,"
                  f"{int(out_w * 0.07)},{int(out_w * 0.07)},{int(out_h * 0.25)},1")
 
     header = (
@@ -643,6 +644,10 @@ def build_ass(words, template, out_w, out_h, total):
 # ---------------------------------------------------------------------------
 def even(x):
     return max(2, int(x) // 2 * 2)
+
+
+def ass_filter(path):
+    return f"ass=filename='{filter_path(path)}':fontsdir='{filter_path(FONTS_DIR)}'"
 
 
 def filter_path(p):
@@ -740,8 +745,8 @@ def build_filtergraph(pieces, groups, info, cfg, crop_dims, ass_path, out_w, out
         L.append(f"color=c={cfg['progress']}:s={out_w}x{bh}:r={fps}:d={total + 1:.3f}[bar]")
         L.append(f"[vgraded][bar]overlay=x='-w+w*t/{total:.3f}':y={out_h - bh}:eval=frame:shortest=1[vbar]")
         video_out = "vbar"
-    mg = f",ass='{filter_path(mg_path)}'" if mg_path else ""
-    L.append(f"[{video_out}]ass='{filter_path(ass_path)}'{mg},fps={fps},format=yuv420p[vout]")
+    mg = f",{ass_filter(mg_path)}" if mg_path else ""
+    L.append(f"[{video_out}]{ass_filter(ass_path)}{mg},fps={fps},format=yuv420p[vout]")
 
     # Audio: voz procesada + música con ducking + SFX
     L.append(f"[{cur_a}]highpass=f=80,acompressor=threshold=-18dB:ratio=3:attack=5:release=120:makeup=2[voice0]")

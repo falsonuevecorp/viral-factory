@@ -178,7 +178,7 @@ def stat_events(g, W, H):
         # tarjeta glass: fondo oscuro translúcido + borde claro
         _ev(5, a, b, f"{{\\an7{mv(x0, y0)}{fade}\\bord1.5\\shad0\\blur1\\1c&H151515&\\1a&H50&\\3c&HFFFFFF&\\3a&H90&\\p1}}"
                      f"{_rrect(cw, ch, ch * 0.28)}{{\\p0}}"),
-        _ev(6, a, b, f"{{\\an7{mv(x0 + cw * 0.07, y0 + ch * 0.14)}{fade}\\fnLiberation Sans\\fs{W * 0.034:.0f}"
+        _ev(6, a, b, f"{{\\an7{mv(x0 + cw * 0.07, y0 + ch * 0.14)}{fade}\\fnInter Medium\\fs{W * 0.034:.0f}"
                      f"\\bord0\\shad0\\1c&HFFFFFF&\\1a&H30&}}{g.get('label', '')}"),
     ]
     steps = _count_steps(str(g.get("value", "")))
@@ -187,8 +187,8 @@ def stat_events(g, W, H):
         sa = a + k * step_t
         sb = b if k == len(steps) - 1 else sa + step_t
         f = "\\fad(0,160)" if k == len(steps) - 1 else ""
-        ev.append(_ev(6, sa, sb, f"{{\\an1\\pos({x0 + cw * 0.07:.0f},{y0 + ch * 0.92:.0f}){f}\\fnLiberation Sans"
-                                  f"\\b1\\fs{W * 0.085:.0f}\\bord0\\shad0\\1c&HFFFFFF&}}{val}"))
+        ev.append(_ev(6, sa, sb, f"{{\\an1\\pos({x0 + cw * 0.07:.0f},{y0 + ch * 0.92:.0f}){f}\\fnInter Bold"
+                                  f"\\b0\\fs{W * 0.085:.0f}\\bord0\\shad0\\1c&HFFFFFF&}}{val}"))
     # mini gráfica: línea ascendente + punto que la recorre
     lx0, ly0, lx1, ly1 = x0 + cw * 0.58, y0 + ch * 0.78, x0 + cw * 0.92, y0 + ch * 0.22
     ev.append(_ev(6, a, b, f"{{\\an7\\pos(0,0){fade}\\bord1.2\\shad0\\1a&HFF&\\3c&HFFFFFF&\\p1}}"
@@ -223,7 +223,7 @@ def _typewriter(text, x, y, size, a, b, delay, an=5, bold=0):
     for k in range(1, len(text) + 1):
         sa = a + delay + (k - 1) * step
         sb = b if k == len(text) else sa + step
-        ev.append(_ev(13, sa, sb, f"{{\\an{an}\\pos({x:.0f},{y:.0f})\\fnLiberation Sans\\b{bold}\\fs{size:.0f}"
+        ev.append(_ev(13, sa, sb, f"{{\\an{an}\\pos({x:.0f},{y:.0f})\\fnInter\\b{bold}\\fs{size:.0f}"
                                    f"\\bord0\\shad0\\1c&H000000&}}{text[:k]}"))
     return ev
 
@@ -269,7 +269,7 @@ def build_graphics_ass(specs, W, H):
         "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, "
         "Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, "
         "Alignment, MarginL, MarginR, MarginV, Encoding\n"
-        "Style: MG,Liberation Sans,40,&H00FFFFFF,&H00FFFFFF,&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,0,0,7,0,0,0,1\n\n"
+        "Style: MG,Inter,40,&H00FFFFFF,&H00FFFFFF,&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,0,0,7,0,0,0,1\n\n"
         "[Events]\nFormat: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\n"
     )
     events = []
