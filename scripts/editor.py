@@ -136,6 +136,9 @@ TEMPLATES = {
     },
 }
 
+# Explainer: estilo minimal + motion graphics automáticos (tarjetas de datos y pantallas blancas)
+TEMPLATES["explainer"] = {**TEMPLATES["minimal"], "graphics": True}
+
 PAD_IN = 0.12
 PAD_OUT = 0.22
 MAX_SEGMENTS = 80
@@ -442,6 +445,9 @@ MOODS = {
                      "L": 2.0, "arp": 0.25, "pulse": 0.25},
     "oscura": {"chords": [("D", "F", "A"), ("Bb", "D", "F"), ("F", "A", "C"), ("C", "E", "G")],
                "L": 2.4, "arp": 0.2, "pulse": 0.2},
+    # 128 BPM, bombo en cada tiempo y "pump" tipo sidechain: energía para deporte
+    "deportiva": {"chords": [("E", "G", "B"), ("C", "E", "G"), ("G", "B", "D"), ("D", "F", "A")],
+                  "L": 1.875, "arp": 0.234375, "pulse": 0.46875, "kick": 0.46875},
 }
 
 
@@ -471,7 +477,11 @@ def generate_music(path, mood):
         arp_freq = "+".join(
             f"if(eq({idx},{k}),{_select([nf(ch[k], 5) * detune for ch in m['chords']], c)},0)" for k in range(3))
         arp_env = f"pow(1-mod(t,{arp})/{arp},3)*min(1,mod(t,{arp})/0.008)"
-        return f"({'+'.join(parts)})*{pad_env}{pulse}+0.12*{arp_env}*sin(2*PI*t*({arp_freq}))"
+        kick = ""
+        if m.get("kick"):
+            u = f"mod(t,{m['kick']})"
+            kick = f"+0.55*exp(-14*{u})*sin(2*PI*(48*{u}+3*(1-exp(-40*{u}))))"
+        return f"({'+'.join(parts)})*{pad_env}{pulse}+0.12*{arp_env}*sin(2*PI*t*({arp_freq})){kick}"
 
     expr = f"{channel(1.0)}|{channel(1.004)}"
     run(["ffmpeg", "-y", "-v", "error", "-f", "lavfi",
@@ -537,7 +547,7 @@ def chunk_words(words, cfg):
 def build_ass(words, template, out_w, out_h, total):
     cfg = TEMPLATES[template]
     ref = min(out_w, out_h)
-    if template == "minimal":
+    if template in ("minimal", "explainer"):
         size = int(out_w * 0.07)
         style = (f"Style: Main,Liberation Sans,{size},&H00FFFFFF,&H00FFFFFF,&H00000000,&HA0000000,"
                  f"0,0,0,0,100,100,-1,0,1,0,{max(1, size * 0.04):.1f},2,"
@@ -573,7 +583,7 @@ def build_ass(words, template, out_w, out_h, total):
         next_start = chunks[ci + 1][0]["start"] if ci + 1 < len(chunks) else total
         chunk_end = min(next_start, chunk[-1]["end"] + 0.35)
 
-        if template == "minimal":
+        if template in ("minimal", "explainer"):
             text = " ".join(re.sub(r"[.,;:…]+$", "", ass_escape(w["word"])) for w in chunk)
             events.append(f"Dialogue: 0,{ass_time(chunk[0]['start'])},{ass_time(chunk_end)},Main,,0,0,0,,"
                           f"{{\\fad(90,60)\\blur3\\t(0,140,\\blur0)}}{text}")
@@ -688,7 +698,7 @@ def group_inputs(pieces, files, work):
 
 
 def build_filtergraph(pieces, groups, info, cfg, crop_dims, ass_path, out_w, out_h, total,
-                      music_idx, sfx_inputs):
+                      music_idx, sfx_inputs, mg_path=None):
     fps, td = info["fps"], cfg["trans_dur"]
     W, H = even(info["w"]), even(info["h"])
     L = []
@@ -715,7 +725,8 @@ def build_filtergraph(pieces, groups, info, cfg, crop_dims, ass_path, out_w, out
         L.append(f"color=c={cfg['progress']}:s={out_w}x{bh}:r={fps}:d={total + 1:.3f}[bar]")
         L.append(f"[vgraded][bar]overlay=x='-w+w*t/{total:.3f}':y={out_h - bh}:eval=frame:shortest=1[vbar]")
         video_out = "vbar"
-    L.append(f"[{video_out}]ass='{filter_path(ass_path)}',fps={fps},format=yuv420p[vout]")
+    mg = f",ass='{filter_path(mg_path)}'" if mg_path else ""
+    L.append(f"[{video_out}]ass='{filter_path(ass_path)}'{mg},fps={fps},format=yuv420p[vout]")
 
     # Audio: voz procesada + música con ducking + SFX
     L.append(f"[{cur_a}]highpass=f=80,acompressor=threshold=-18dB:ratio=3:attack=5:release=120:makeup=2[voice0]")
@@ -792,6 +803,17 @@ def process_video(input_path, output_path, template="minimal", aspect="original"
         with open(ass_path, "w", encoding="utf-8") as f:
             f.write(build_ass(new_words, template, out_w, out_h, total))
 
+        mg_path = None
+        if cfg.get("graphics"):
+            from motion_graphics import pick_graphics, build_graphics_ass
+            specs = pick_graphics(new_words, total, log)
+            if specs:
+                mg_path = os.path.join(work, "graphics.ass")
+                with open(mg_path, "w", encoding="utf-8") as f:
+                    f.write(build_graphics_ass(specs, out_w, out_h))
+            log(f"📊 {len(specs)} gráficos animados: " + ", ".join(
+                f"{g['type']}@{g['start']:.1f}s" for g in specs))
+
         log(f"🎞️  Etapa 1: renderizando {len(pieces)} planos (cortes + zooms + hook)...")
         files = render_pieces(input_path, pieces, info, cfg, work)
         groups, inputs = group_inputs(pieces, files, work)
@@ -818,7 +840,7 @@ def process_video(input_path, output_path, template="minimal", aspect="original"
         graph_path = os.path.join(work, "graph.txt")
         with open(graph_path, "w") as f:
             f.write(build_filtergraph(pieces, groups, info, cfg, crop_dims, ass_path, out_w, out_h, total,
-                                      music_idx, sfx_inputs))
+                                      music_idx, sfx_inputs, mg_path))
 
         log("🎞️  Etapa 2: transiciones + etalonaje + subtítulos + música + SFX + master de audio...")
         os.makedirs(os.path.dirname(os.path.abspath(output_path)), exist_ok=True)
@@ -838,9 +860,12 @@ def process_video(input_path, output_path, template="minimal", aspect="original"
 
 def main():
     parser = argparse.ArgumentParser(description="ViralFactory Engine PRO")
-    parser.add_argument("input")
+    parser.add_argument("input", help="Video de entrada (en 'sport' puedes separar varios clips con comas)")
     parser.add_argument("output")
     parser.add_argument("template", nargs="?", default="minimal")
+    parser.add_argument("--lines", default=os.getenv("VF_LINES"),
+                        help="sport: frases separadas por | que aparecen al ritmo (ej. 'run|run fast')")
+    parser.add_argument("--duration", type=float, default=None, help="sport: duración objetivo en segundos")
     parser.add_argument("--aspect", choices=["original", "9:16", "1:1"], default=os.getenv("VF_ASPECT", "original"))
     parser.add_argument("--music", default=os.getenv("VF_MUSIC", "auto"),
                         help="auto (music/<mood>/ o generada), none, o ruta a un archivo")
@@ -848,6 +873,12 @@ def main():
     parser.add_argument("--no-cuts", action="store_true", help="No eliminar silencios")
     parser.add_argument("--transcript-json", help="Usar una transcripción [{word,start,end}] en vez de Whisper")
     args = parser.parse_args()
+    if args.template == "sport":
+        from sport import process_sport
+        aspect = args.aspect if args.aspect != "original" else "9:16"
+        process_sport(args.input.split(","), args.output, aspect=aspect, music=args.music,
+                      lines=args.lines, duration=args.duration, transcript_json=args.transcript_json)
+        return
     process_video(args.input, args.output, args.template, args.aspect, cuts=not args.no_cuts,
                   transcript_json=args.transcript_json, music=args.music, sfx=not args.no_sfx)
 
