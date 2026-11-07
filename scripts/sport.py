@@ -19,11 +19,11 @@ import tempfile
 import numpy as np
 
 import editor
-from editor import SR, ass_escape, ass_time, even, filter_path, log, pick_music, probe, run
+from editor import SR, TONEMAP, ass_escape, ass_time, even, filter_path, log, pick_music, probe, run
 
 FPS = 30
 GRADE = ("curves=r='0/0 0.3/0.26 0.7/0.74 1/1':g='0/0 0.5/0.53 1/1':b='0/0.06 0.4/0.45 1/0.94',"
-         "eq=contrast=1.08:saturation=1.28,vignette=PI/5")
+         "eq=contrast=1.08:saturation=1.15,vignette=PI/7")
 
 
 # ---------------------------------------------------------------------------
@@ -84,14 +84,20 @@ def motion_profile(path):
     return np.array(times), np.array(vals)
 
 
-def window_score(times, vals, a, b):
+def window_score(times, vals, a, b, cap=None):
+    """Movimiento medio del tramo; por encima de 'cap' (sacudidas de cámara) se penaliza."""
     sel = (times >= a) & (times <= b)
-    return float(vals[sel].mean()) if sel.any() else 0.0
+    if not sel.any():
+        return 0.0
+    m = float(vals[sel].mean())
+    return m if cap is None or m <= cap else max(0.0, 2 * cap - m)
 
 
 def choose_windows(clips, shots):
     """Asigna a cada plano el tramo de clip con más movimiento, sin solapes entre planos."""
     used = {i: [] for i in range(len(clips))}
+    allv = np.concatenate([c["vals"] for c in clips if len(c["vals"])]) if clips else np.array([])
+    cap = float(np.percentile(allv, 70)) if len(allv) else None
     chosen, last_clip = [], None
     for shot in shots:
         need = shot["src_dur"]
@@ -102,7 +108,7 @@ def choose_windows(clips, shots):
                 b = a + need
                 if any(a < ub + 0.15 and b > ua - 0.15 for ua, ub in used[ci]):
                     continue
-                score = window_score(c["times"], c["vals"], a, b)
+                score = window_score(c["times"], c["vals"], a, b, cap)
                 if ci == last_clip and len(clips) > 1:
                     score *= 0.7                                      # variedad de clips
                 if best is None or score > best[0]:
@@ -140,11 +146,11 @@ def build_text_ass(events, W, H):
         "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, "
         "Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, "
         "Alignment, MarginL, MarginR, MarginV, Encoding\n"
-        f"Style: T,Liberation Sans,{size},&H00FFFFFF,&H00FFFFFF,&H00000000,&H90000000,"
-        f"0,0,0,0,100,100,-0.5,0,1,0,{max(1, size * 0.05):.1f},5,40,40,0,1\n\n"
+        f"Style: T,Liberation Sans,{size},&H00FFFFFF,&H00FFFFFF,&HA0000000,&H90000000,"
+        f"0,0,0,0,100,100,-0.5,0,1,{max(2, size * 0.07):.1f},0,5,40,40,0,1\n\n"
         "[Events]\nFormat: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\n"
     )
-    lines = [f"Dialogue: 0,{ass_time(a)},{ass_time(b)},T,,0,0,0,,{{\\pos({W // 2},{int(H * 0.5)})\\fad(70,50)}}{txt}"
+    lines = [f"Dialogue: 0,{ass_time(a)},{ass_time(b)},T,,0,0,0,,{{\\pos({W // 2},{int(H * 0.5)})\\fad(70,50)\\blur5}}{txt}"
              for a, b, txt in events]
     return header + "\n".join(lines) + "\n"
 
@@ -238,7 +244,8 @@ def process_sport(inputs, output_path, aspect="9:16", music="auto", lines=None, 
                 slow = f",setpts=PTS/{s['speed']}"
                 if c["info"]["fps"] < 50:
                     slow += f",framerate=fps={FPS}"                    # mezcla de frames: cámara lenta fluida
-            vf = (f"scale={W}:{H}:force_original_aspect_ratio=increase:flags=lanczos,crop={W}:{H}"
+            tm = f",{TONEMAP}" if c["info"].get("hdr") else ""
+            vf = (f"scale={W}:{H}:force_original_aspect_ratio=increase:flags=lanczos,crop={W}:{H}{tm}"
                   f"{slow},fps={FPS},setsar=1,format=yuv420p")
             out = os.path.join(work, f"shot_{n:03d}.mkv")
             run(["ffmpeg", "-y", "-v", "error", "-ss", f"{s['src_start']:.3f}", "-i", c["path"],

@@ -203,7 +203,22 @@ def probe(path):
         fps = 30.0
 
     duration = float(data["format"].get("duration") or video.get("duration") or 0)
-    return {"w": w, "h": h, "fps": round(fps, 3), "duration": duration, "has_audio": audio is not None}
+    hdr = video.get("color_transfer") in ("arib-std-b67", "smpte2084")   # iPhone HLG / HDR10
+    return {"w": w, "h": h, "fps": round(fps, 3), "duration": duration, "has_audio": audio is not None, "hdr": hdr}
+
+
+# HDR (iPhone) -> SDR Rec.709 con tone mapping, para que el color no salga lavado
+TONEMAP = ("zscale=t=linear:npl=203,format=gbrpf32le,zscale=p=bt709,tonemap=tonemap=mobius:param=0.3:desat=2,"
+           "zscale=t=bt709:m=bt709:r=tv,format=yuv420p")
+
+
+def work_resolution(info, max_short=1080):
+    """Trabaja como máximo a 1080p en el lado corto (4K del iPhone -> 1080x1920)."""
+    short = min(info["w"], info["h"])
+    if short > max_short:
+        f = max_short / short
+        info["w"], info["h"] = int(info["w"] * f) // 2 * 2, int(info["h"] * f) // 2 * 2
+    return info
 
 
 # ---------------------------------------------------------------------------
@@ -671,7 +686,7 @@ def render_pieces(input_path, pieces, info, cfg, work):
             afx += f",afade=t=out:st={max(0, dur - AUDIO_FADE):.4f}:d={AUDIO_FADE}"
         out = os.path.join(work, f"piece_{i:03d}.mkv")
         run(["ffmpeg", "-y", "-v", "error", "-ss", f"{p['start']:.4f}", "-i", input_path, "-t", f"{dur:.4f}",
-             "-vf", f"{vfx},setsar=1,fps={fps},format=yuv420p", "-af", afx,
+             "-vf", f"{vfx}{',' + TONEMAP if info.get('hdr') else ''},setsar=1,fps={fps},format=yuv420p", "-af", afx,
              "-c:v", "libx264", "-preset", "ultrafast", "-crf", "12", "-g", "1",
              "-c:a", "pcm_s16le", out])
         files.append(out)
@@ -770,7 +785,7 @@ def process_video(input_path, output_path, template="minimal", aspect="original"
 
     work = tempfile.mkdtemp(prefix="vf_")
     try:
-        info = probe(input_path)
+        info = work_resolution(probe(input_path))
         log(f"📐 {info['w']}x{info['h']} @ {info['fps']}fps · {info['duration']:.1f}s")
         if not info["has_audio"]:
             raise ValueError("El video subido no tiene pista de audio. No se pueden generar subtítulos.")
